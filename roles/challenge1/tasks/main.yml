@@ -5,6 +5,37 @@
     state: present
   become: true
 
+# - name: Install SELinux policy tools
+#   ansible.builtin.package:
+#     name: 
+#       - policycoreutils
+#       - policycoreutils-python-utils
+#       - selinux-policy
+#       - selinux-policy-targeted
+#     state: present
+#   become: true
+
+# - name: Ensure SELinux is set to enforcing in config file
+#   lineinfile:
+#     path: /etc/selinux/config
+#     regexp: '^SELINUX='
+#     line: 'SELINUX=enforcing'
+#   become: true
+
+# - name: Ensure SELinux policy type is targeted
+#   lineinfile:
+#     path: /etc/selinux/config
+#     regexp: '^SELINUXTYPE='
+#     line: 'SELINUXTYPE=targeted'
+#   become: true
+
+# - name: Ensure Nginx can bind to non-standard ports
+#   ansible.builtin.seboolean:
+#     name: httpd_can_network_bind
+#     state: true
+#     persistent: true
+#   become: true
+
 - name: Ensure port is on 7510
   ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
@@ -20,6 +51,11 @@
     line: 'listen       [::]:7510;'
   notify: Restart nginx
   become: true
+
+- name: Allow Nginx to bind to TCP port 7510
+  ansible.builtin.command: semanage port -a -t http_port_t -p tcp 7510
+  become: true
+  ignore_errors: true
 
 - name: Reload Nginx
   ansible.builtin.service:
