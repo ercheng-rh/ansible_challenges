@@ -3,6 +3,17 @@
   hosts: all
   gather_facts: true
   become: true
+  vars:
+    users:
+      - first: Bob
+        last: Builder
+        username: bbuilder
+        group: dev
+        uid: 1230
+      - username: alice
+        uid: 1231
+        group: devs
+        password: "{{ 'SuperSecret123!' | password_hash('sha512') }}"
   roles:
-    - role: challenge1
+    - challenge1
 ...

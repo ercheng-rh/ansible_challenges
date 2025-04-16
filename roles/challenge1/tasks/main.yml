@@ -1,2 +1,86 @@
 ---
+- name: Install Nginx
+  ansible.builtin.dnf:
+    name: nginx
+    state: present
+  become: true
+
+- name: Ensure port is on 7510
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    search_string: 'listen\s+80;'
+    line: 'listen       7510;'
+  notify: Restart nginx
+  become: true
+
+- name: Ensure IPv6 port is on 7510
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    search_string: 'listen\s+\[::\]:80;'
+    line: 'listen       [::\]:7510;'
+  notify: Restart nginx
+  become: true
+
+- name: Custom Web Page
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /var/www/html/nginx.html
+  become: true
+
+- name: Ensure Nginx is running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  become: true
+
+- name: Copying test.html to web
+  ansible.builtin.copy:
+    src: files/test.html
+    dest: /var/www/html/test.html
+
+- name: Replace typo in test.html
+  ansible.builtin.replace:
+    path: /var/www/html/test.html
+    regexp: 'TeSt'
+    replace: 'test'
+
+- name: Create group if specified
+  ansible.builtin.group:
+    name: "{{ item.group }}"
+    gid: "{{ item.uid | default(omit) }}"
+  when: item.group is defined
+  loop: "{{ users }}"
+
+- name: Ensure user exists
+  ansible.builtin.user:
+    name: "{{ item.username }}"
+    uid: "{{ item.uid | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    password: "{{ item.password | default(omit) }}"
+  loop: "{{ users }}"
+
+- name: Generate random password
+  ansible.builtin.set_fact:
+    random_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=12, chars=['ascii_letters', 'digits', 'special']) }}"
+  loop: "{{ users }}"
+  when: item.password is not defined
+
+- name: Set user password
+  ansible.builtin.user:
+    name: "{{ item.username }}"
+    password: "{{ random_password | password_hash('sha512') }}"
+  loop: "{{ users }}"
+  when: item.password is not defined
+
+- name: Save generated password to a file
+  ansible.builtin.copy:
+    content: "{{ random_password }}"
+    dest: "/root/.{{ item.username }}.password"
+    mode: '0700'
+    owner: root
+    group: root
+  loop: "{{ users }}"
+  when: item.password is not defined
+
 ...

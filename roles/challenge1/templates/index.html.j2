@@ -1,0 +1,13 @@
+{% set hour = ansible_date_time.hour | int %}
+{% if 0 <= hour < 12 %}
+  {% set greeting = "Morning" %}
+{% elif 12 <= hour < 17 %}
+  {% set greeting = "Afternoon" %}
+{% else %}
+  {% set greeting = "Evening" %}
+{% endif %}
+
+<h1>{{ greeting }}</h1>
+<p>Hostname: {{ ansible_hostname }}</p>
+<p>IP Address: {{ ansible_default_ipv4.address }}</p>
+<p>Environment: {{ environment }}</p>
