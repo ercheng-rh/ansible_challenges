@@ -8,7 +8,7 @@
 - name: Ensure port is on 7510
   ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
-    search_string: 'listen\s+80;'
+    search_string: 'listen       80;'
     line: 'listen       7510;'
   notify: Restart nginx
   become: true
@@ -16,22 +16,28 @@
 - name: Ensure IPv6 port is on 7510
   ansible.builtin.lineinfile:
     path: /etc/nginx/nginx.conf
-    search_string: 'listen\s+\[::\]:80;'
-    line: 'listen       [::\]:7510;'
+    search_string: 'listen       [::]:80;'
+    line: 'listen       [::]:7510;'
   notify: Restart nginx
   become: true
+
+- name: Reload Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  become: true
+
+# - name: Ensure Nginx is running
+#   ansible.builtin.service:
+#     name: nginx
+#     state: started
+#     enabled: true
+#   become: true
 
 - name: Custom Web Page
   ansible.builtin.template:
     src: index.html.j2
     dest: /var/www/html/nginx.html
-  become: true
-
-- name: Ensure Nginx is running
-  ansible.builtin.service:
-    name: nginx
-    state: started
-    enabled: true
   become: true
 
 - name: Copying test.html to web
