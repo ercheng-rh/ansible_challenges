@@ -7,6 +7,6 @@
   become: true
 
 - name: Restore SELinux context
-  command: restorecon -R /var/www/html
+  command: restorecon -Rv /var/www/html
   when: ansible_selinux.status == "enabled"
 ...

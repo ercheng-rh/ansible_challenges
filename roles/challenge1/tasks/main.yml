@@ -5,70 +5,27 @@
     state: present
   become: true
 
-# - name: Install SELinux policy tools
-#   ansible.builtin.package:
-#     name: 
-#       - policycoreutils
-#       - policycoreutils-python-utils
-#       - selinux-policy
-#       - selinux-policy-targeted
-#     state: present
-#   become: true
+- name: Replace with custom nginx conf file
+  ansible.builtin.copy:
+    src: nginx_custom.conf
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    mode: '0644'
 
-# - name: Ensure SELinux is set to enforcing in config file
-#   lineinfile:
-#     path: /etc/selinux/config
-#     regexp: '^SELINUX='
-#     line: 'SELINUX=enforcing'
-#   become: true
+- name: Allow Nginx to listen on TCP port 7510
+  community.general.seport:
+    ports: 7510
+    proto: tcp
+    setype: http_port_t
+    state: present
 
-# - name: Ensure SELinux policy type is targeted
-#   lineinfile:
-#     path: /etc/selinux/config
-#     regexp: '^SELINUXTYPE='
-#     line: 'SELINUXTYPE=targeted'
-#   become: true
-
-# - name: Ensure Nginx can bind to non-standard ports
-#   ansible.builtin.seboolean:
-#     name: httpd_can_network_bind
-#     state: true
-#     persistent: true
-#   become: true
-
-- name: Ensure port is on 7510
-  ansible.builtin.lineinfile:
-    path: /etc/nginx/nginx.conf
-    search_string: 'listen       80;'
-    line: 'listen       7510;'
-  notify: Restart nginx
+- name: Open port 7510 in firewall
+  ansible.posix.firewalld:
+    port: 7510/tcp
+    permanent: true
+    state: enabled
+    immediate: yes
   become: true
-
-- name: Ensure IPv6 port is on 7510
-  ansible.builtin.lineinfile:
-    path: /etc/nginx/nginx.conf
-    search_string: 'listen       [::]:80;'
-    line: 'listen       [::]:7510;'
-  notify: Restart nginx
-  become: true
-
-- name: Allow Nginx to bind to TCP port 7510
-  ansible.builtin.command: semanage port -a -t http_port_t -p tcp 7510
-  become: true
-  ignore_errors: true
-
-- name: Reload Nginx
-  ansible.builtin.service:
-    name: nginx
-    state: reloaded
-  become: true
-
-# - name: Ensure Nginx is running
-#   ansible.builtin.service:
-#     name: nginx
-#     state: started
-#     enabled: true
-#   become: true
 
 - name: Custom Web Page
   ansible.builtin.template:
@@ -87,6 +44,27 @@
     regexp: 'TeSt'
     replace: 'test'
 
+- name: Reload Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+  become: true
+
+- name: Ensure Nginx is running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  become: true
+
+- name: Restore SELinux context on /var/www/html using collection
+  community.general.sefcontext:
+    target: /var/www/html(/.*)?
+    setype: httpd_sys_content_t
+    state: present
+  notify: Restore SELinux contexts
+  become: true
+
 - name: Create group if specified
   ansible.builtin.group:
     name: "{{ item.group }}"
@@ -102,6 +80,7 @@
     password: "{{ item.password | default(omit) }}"
   loop: "{{ users }}"
 
+#if user is already created, dont change password
 - name: Generate random password
   ansible.builtin.set_fact:
     random_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=12, chars=['ascii_letters', 'digits', 'special']) }}"
